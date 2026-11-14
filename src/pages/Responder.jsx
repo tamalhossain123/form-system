@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { isEmptyAnswer } from '../fieldUtils'
+import { isEmptyAnswer, formatAnswer, flattenFields } from '../fieldUtils'
 import FieldInput from '../components/FieldInput.jsx'
 
 export default function Responder() {
@@ -345,6 +345,33 @@ function FillForm({ form, accessRequest, isOwnerPreview }) {
     if (error) {
       alert('Could not submit: ' + error.message)
       return
+    }
+    // Optional: also append this response as a row in the owner's Google
+    // Sheet, via their Apps Script Web App webhook. Fire-and-forget: a
+    // failed Sheets POST must never block or error the submission.
+    const sheetsUrl = (settings.sheetsWebhookUrl || '').trim()
+    if (sheetsUrl) {
+      try {
+        const readable = {}
+        flattenFields(form.structure).forEach(({ field }) => {
+          if (field.type === 'text_block' || field.type === 'image_block') return
+          readable[field.title || 'Untitled Question'] = formatAnswer(field, answers[field.id])
+        })
+        const payload = {
+          formId: form.id,
+          formTitle: form.title,
+          submittedAt: new Date().toISOString(),
+          answers: readable,
+        }
+        fetch(sheetsUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+        }).catch(() => {})
+      } catch {
+        /* ignore: Sheets sync is best-effort only */
+      }
     }
     try {
       localStorage.removeItem(storageKey)

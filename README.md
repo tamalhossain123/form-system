@@ -96,3 +96,27 @@ npm run build    # production build into dist/
 4. The personal link opens the form directly. An approved person who
    lost the link can also enter their email on the form page ("Already
    approved?") to be taken to it.
+
+## Send responses to Google Sheets (optional)
+
+In addition to the built-in Responses views, every new response can also
+be appended as a row in a Google Sheet, using a small Google Apps Script
+webhook. The script lives in [`apps-script/Code.gs`](apps-script/Code.gs).
+
+1. Open the Google Sheet that should receive the responses.
+2. Click **Extensions → Apps Script**, delete the existing code, and
+   paste in the whole of `apps-script/Code.gs`.
+3. Click **Deploy → New deployment**, choose **Web app**, set
+   **Execute as: Me** and **Who has access: Anyone**, then deploy and
+   approve the permission prompts.
+4. Copy the Web App URL (it ends in `/exec`).
+5. In the Form System app, open the form's **Settings** tab and paste
+   the URL into the **Google Sheets** field.
+
+From then on, each submitted response is also sent to the script, which
+appends it to a tab named after the form's title (creating the tab and
+any new question columns automatically, with a `Submitted At` column
+first). The Sheets copy is best-effort: if the webhook fails, the
+response is still saved normally in the app. One Web App URL can be
+reused for several forms — each form gets its own tab — or you can use
+a different sheet/script per form.

@@ -80,6 +80,21 @@ export default function SettingsTab({ form, settings, onSettingsChange }) {
       </div>
 
       <div className="settings-row">
+        <h4>Google Sheets</h4>
+        <p className="muted">
+          Paste your Apps Script Web App URL. Every new response will also be appended
+          as a row in your Google Sheet.
+        </p>
+        <input
+          className="bordered-input"
+          type="url"
+          value={settings.sheetsWebhookUrl || ''}
+          onChange={(e) => patch({ sheetsWebhookUrl: e.target.value })}
+          placeholder="https://script.google.com/macros/s/.../exec"
+        />
+      </div>
+
+      <div className="settings-row">
         <h4>Danger zone</h4>
         <button className="btn-outline btn-danger" onClick={deleteForm}>
           Delete this form
