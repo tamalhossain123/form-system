@@ -26,12 +26,20 @@ export default function Dashboard() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const { session } = useAuth()
+  const userId = session?.user?.id || null
 
   async function load() {
+    // Ownership isolation: only ever fetch the signed-in user's own forms.
+    if (!userId) {
+      setForms([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const { data, error } = await supabase
       .from('forms')
       .select('id,title,description,published,created_at,updated_at')
+      .eq('owner_id', userId)
       .order('updated_at', { ascending: false })
     if (error) setError(error.message)
     else setForms(data || [])
@@ -40,7 +48,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     load()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
   useEffect(() => {
     const close = () => setOpenMenu(null)

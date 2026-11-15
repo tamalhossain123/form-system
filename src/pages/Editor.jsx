@@ -21,6 +21,7 @@ export default function Editor() {
   const [selectedFieldId, setSelectedFieldId] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [error, setError] = useState('')
+  const [notOwner, setNotOwner] = useState(false)
   const loadedRef = useRef(false)
   const saveTimer = useRef(null)
 
@@ -30,6 +31,15 @@ export default function Editor() {
       if (error) {
         setError(error.message)
         return
+      }
+      // Ownership isolation: never open (or autosave) another user's form.
+      if (data.owner_id) {
+        const { data: sess } = await supabase.auth.getSession()
+        const userId = sess?.session?.user?.id || null
+        if (data.owner_id !== userId) {
+          setNotOwner(true)
+          return // loadedRef stays false, so autosave never runs
+        }
       }
       setForm(data)
       setTitle(data.title || 'Untitled form')
@@ -80,8 +90,72 @@ export default function Editor() {
 
   const sections = structure.sections || []
 
+  // --- Undo / redo history for the form structure -------------------------
+  // past/future hold snapshots of `structure`. Every structure change made
+  // through setSections() routes through updateStructure(), which pushes the
+  // previous structure onto `past` (capped at 100) and clears `future`.
+  // Coalescing: changes arriving within 800ms of the last push skip pushing,
+  // so a burst of keystrokes collapses into a single undo step.
+  const [past, setPast] = useState([])
+  const [future, setFuture] = useState([])
+  const lastPushRef = useRef(0)
+
+  function updateStructure(next) {
+    const now = Date.now()
+    if (now - lastPushRef.current >= 800) {
+      setPast((p) => [...p.slice(-99), structure])
+    }
+    lastPushRef.current = now
+    setFuture([])
+    setStructure(next)
+  }
+
+  function undo() {
+    if (past.length === 0) return
+    const prev = past[past.length - 1]
+    setPast(past.slice(0, -1))
+    setFuture((f) => [structure, ...f].slice(0, 100))
+    lastPushRef.current = 0 // next edit starts a fresh history step
+    setStructure(prev) // flows through the normal setter, so autosave persists it
+  }
+
+  function redo() {
+    if (future.length === 0) return
+    const next = future[0]
+    setFuture(future.slice(1))
+    setPast((p) => [...p.slice(-99), structure])
+    lastPushRef.current = 0
+    setStructure(next)
+  }
+
+  // Keep refs to the latest undo/redo for the keyboard handler.
+  const undoRef = useRef(undo)
+  undoRef.current = undo
+  const redoRef = useRef(redo)
+  redoRef.current = redo
+
+  useEffect(() => {
+    function onKey(e) {
+      const t = e.target
+      const tag = t && t.tagName
+      // Inside text fields, let the browser's native text undo happen.
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const key = (e.key || '').toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undoRef.current()
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault()
+        redoRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   function setSections(next) {
-    setStructure({ ...structure, sections: next })
+    updateStructure({ ...structure, sections: next })
   }
 
   function updateSection(secId, patch) {
@@ -207,6 +281,16 @@ export default function Editor() {
       </div>
     )
   }
+  if (notOwner) {
+    return (
+      <div className="center-page">
+        <div>
+          <p>This form belongs to another account.</p>
+          <button className="btn" onClick={() => navigate('/')}>Back to forms</button>
+        </div>
+      </div>
+    )
+  }
   if (!form) return <div className="center-page">Loading...</div>
 
   return (
@@ -221,6 +305,22 @@ export default function Editor() {
           />
           <span className="save-indicator">{saveState}</span>
           <div className="topbar-actions">
+            <button
+              className="icon-btn text-btn"
+              title="Undo (Ctrl+Z)"
+              onClick={undo}
+              disabled={past.length === 0}
+            >
+              ↩ Undo
+            </button>
+            <button
+              className="icon-btn text-btn"
+              title="Redo (Ctrl+Shift+Z)"
+              onClick={redo}
+              disabled={future.length === 0}
+            >
+              ↪ Redo
+            </button>
             <button className="icon-btn" title="Preview" onClick={openPreview}>👁</button>
             <button className="icon-btn" title="Copy responder link" onClick={copyResponderLink}>🔗</button>
             <button
@@ -335,6 +435,7 @@ export default function Editor() {
                         key={f.id}
                         field={f}
                         sections={sections}
+                        inPair={group.length > 1}
                         selected={selectedFieldId === f.id}
                         onSelect={() => setSelectedFieldId(f.id)}
                         onChange={(next) => updateField(section.id, f.id, next)}

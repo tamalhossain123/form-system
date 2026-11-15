@@ -63,6 +63,7 @@ export default function FieldEditor({
   onMove,
   selected,
   onSelect,
+  inPair,
 }) {
   const patch = (p) => onChange({ ...field, ...p })
 
@@ -260,7 +261,7 @@ export default function FieldEditor({
 
   return (
     <div
-      className={`card field-card ${selected ? 'selected' : ''}`}
+      className={`card field-card ${selected ? 'selected' : ''} ${inPair ? 'in-pair' : ''}`}
       onClick={onSelect}
     >
       <div className="field-top">

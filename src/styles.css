@@ -51,6 +51,12 @@ button { font-family: inherit; cursor: pointer; }
   display: inline-flex; align-items: center; justify-content: center;
 }
 .icon-btn:hover { background: rgba(0,0,0,.06); }
+.icon-btn.text-btn {
+  width: auto; height: 36px; border-radius: 18px; padding: 0 12px;
+  font-size: 13px; white-space: nowrap;
+}
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.icon-btn:disabled:hover { background: none; }
 .link-btn {
   background: none; border: none; color: var(--purple);
   font-size: 13px; padding: 4px 8px;
@@ -232,13 +238,13 @@ textarea.text-input { resize: vertical; }
 
 .field-card { transition: box-shadow .15s; }
 .field-card.selected { box-shadow: 0 1px 6px rgba(0,0,0,.25); border-left: 6px solid #4285f4; }
-.field-top { display: flex; gap: 16px; align-items: flex-start; }
+.field-top { display: flex; gap: 16px; align-items: flex-start; min-width: 0; }
 .field-title-input {
-  flex: 1; background: #f8f9fa; border: none; border-bottom: 1px solid var(--card-border);
+  flex: 1; min-width: 0; background: #f8f9fa; border: none; border-bottom: 1px solid var(--card-border);
   font-size: 16px; padding: 12px; outline: none; font-family: inherit;
 }
 .field-title-input:focus { border-bottom: 2px solid var(--purple); }
-.field-type-select { width: 210px; }
+.field-type-select { width: 210px; min-width: 0; flex-shrink: 1; }
 .field-desc-input {
   width: 100%; border: none; border-bottom: 1px solid var(--card-border); outline: none;
   font-size: 13px; color: var(--muted); padding: 6px 2px; margin-top: 10px; font-family: inherit;
@@ -262,17 +268,17 @@ textarea.text-input { resize: vertical; }
 .switch input:checked + .track { background: #b39ddb; }
 .switch input:checked + .track:before { transform: translateX(16px); background: var(--purple); }
 
-.option-edit-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-.option-edit-row .radio-dot { color: var(--muted); }
+.option-edit-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; min-width: 0; }
+.option-edit-row .radio-dot { color: var(--muted); flex-shrink: 0; }
 .option-edit-row input[type='text'] {
-  flex: 1; border: none; border-bottom: 1px solid transparent; outline: none;
+  flex: 1; min-width: 0; border: none; border-bottom: 1px solid transparent; outline: none;
   font-size: 14px; padding: 6px 2px; font-family: inherit;
 }
 .option-edit-row input[type='text']:hover, .option-edit-row input[type='text']:focus { border-bottom-color: var(--card-border); }
-.option-goto { width: 200px; font-size: 13px; }
+.option-goto { width: 200px; min-width: 0; flex-shrink: 1; font-size: 13px; }
 .add-option-btn { color: var(--muted); background: none; border: none; padding: 8px 2px; font-size: 14px; }
-.list-edit-row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
-.list-edit-row input { flex: 1; }
+.list-edit-row { display: flex; gap: 8px; align-items: center; margin: 6px 0; min-width: 0; }
+.list-edit-row input { flex: 1; min-width: 0; }
 .scale-edit { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
 .scale-edit label { font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
 .grid-edit-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
@@ -280,13 +286,43 @@ textarea.text-input { resize: vertical; }
 
 /* side-by-side pairing */
 .pair-row { display: flex; gap: 14px; align-items: flex-start; }
-.pair-row > .field-card { flex: 1; min-width: 0; }
+.pair-row > .field-card { flex: 1 1 0; min-width: 0; }
+.option-edit-row .icon-btn, .list-edit-row .icon-btn { flex-shrink: 0; }
+
+/* A field card rendered inside a pair row is only ~half width (~366px), so
+   its inner rows must adapt instead of overflowing onto the neighbour card. */
+.field-card.in-pair { padding: 20px 16px; }
+.field-card.in-pair .field-top { gap: 10px; }
+.field-card.in-pair .field-type-select { width: 140px; max-width: 140px; flex: 0 1 140px; }
+.field-card.in-pair .option-edit-row { flex-wrap: wrap; }
+.field-card.in-pair .option-goto {
+  flex: 1 1 100%; width: auto; max-width: none; order: 4;
+}
+.field-card.in-pair .field-footer { row-gap: 10px; }
+.field-card.in-pair .grid-edit-cols { grid-template-columns: 1fr; gap: 12px; }
+.field-card.in-pair .scale-edit { gap: 10px; }
+
 .pair-note {
   font-size: 11px; color: var(--purple); background: #ede7f6; border-radius: 8px;
   padding: 1px 8px; margin-left: 8px; white-space: nowrap;
 }
-.pair-fields { display: flex; gap: 16px; }
-.pair-fields > .respond-field-wrap { flex: 1; min-width: 0; }
+.pair-fields { display: flex; gap: 16px; align-items: flex-start; }
+.pair-fields > .respond-field-wrap { flex: 1 1 0; min-width: 0; }
+/* Same overflow risk on the responder side: cap wide controls at the
+   half-width card's content box. */
+.pair-fields .respond-field { min-width: 0; }
+.pair-fields .select-input { max-width: 100%; width: 100%; }
+.pair-fields .pq-qty { max-width: 120px; }
+.pair-fields .grid-table th, .pair-fields .grid-table td { padding: 6px 2px; }
+.pair-fields .scale-wrap { flex-wrap: wrap; }
+
+/* On narrow screens, stack pairs vertically instead of squeezing. */
+@media (max-width: 640px) {
+  .pair-row { flex-direction: column; }
+  .pair-row > .field-card { width: 100%; flex: none; }
+  .pair-fields { flex-direction: column; }
+  .pair-fields > .respond-field-wrap { width: 100%; flex: none; }
+}
 
 .floating-toolbar {
   position: absolute; right: -64px; top: 120px;
@@ -347,11 +383,11 @@ textarea.text-input { resize: vertical; }
 /* product + quantity */
 .pq-list { display: grid; gap: 4px; }
 .pq-row {
-  display: flex; align-items: center; gap: 16px; padding: 7px 0;
+  display: flex; align-items: center; gap: 16px; padding: 7px 0; min-width: 0;
   border-bottom: 1px solid #f1f3f4;
 }
 .pq-row:last-child { border-bottom: none; }
-.pq-name { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; }
+.pq-name { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .pq-name input { accent-color: var(--purple); width: 18px; height: 18px; }
 .pq-qty { max-width: 220px; }
 
